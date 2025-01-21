@@ -13,6 +13,11 @@ package leo.client;
 //import leo.client.OggClip;
 
 import leo.shared.Constants;
+import org.lwjgl.openal.AL;
+import org.lwjgl.openal.ALC;
+import org.lwjgl.openal.ALC10;
+import org.lwjgl.system.MemoryStack;
+import org.lwjgl.system.MemoryUtil;
 import org.tinylog.Logger;
 
 import javax.imageio.ImageIO;
@@ -21,8 +26,11 @@ import java.awt.image.BufferedImage;
 //import java.io.BufferedInputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.IntBuffer;
 
 public class GameMedia {
+    private static long device;
+    private static long context;
     public static final int MAX_SOUND_COUNT = 8;
     public static final int MAX_SOUND_INDIVIDUAL = 3;
 
@@ -38,6 +46,7 @@ public class GameMedia {
     private final Toolkit tk = Toolkit.getDefaultToolkit();
     private boolean soundLoaded = false;
     private boolean artLoaded = false;
+    private boolean soundEnabled; //not implemented yet, will disable sounds if openal does not load
 
 
     /////////////////////////////////////////////////////////////////
@@ -51,18 +60,47 @@ public class GameMedia {
 
     }
 
+    private boolean initOpenAL() {
+        Logger.info("OggClip(); Initializing OpenAL");
+        // Initialize OpenAL context only once
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            // Get default device name
+            String deviceName = ALC10.alcGetString(0, ALC10.ALC_DEFAULT_DEVICE_SPECIFIER);
+
+            // Open the device
+            device = ALC10.alcOpenDevice(deviceName);
+            if (device == MemoryUtil.NULL) {
+                throw new IllegalStateException("Failed to open the default OpenAL device.");
+            }
+
+            // Create the context
+            context = ALC10.alcCreateContext(device, (IntBuffer) null);
+            ALC10.alcMakeContextCurrent(context);
+            AL.createCapabilities(ALC.createCapabilities(device));
+            Logger.info("OpenAL initialized.");
+            return true;
+        } catch (Exception e) {
+            Logger.error("Failed to initialize OpenAL: " + e);
+            return false;
+        }
+    }
+
     private void loadSounds() {
         URL url;
         URL[] urls = new URL[1];
 
         try {
+            soundEnabled = initOpenAL();
+            if(device == 0) {
+                soundEnabled = false;
+            }
+            Logger.info("Sound is " + (soundEnabled ? "Enabled" : "Disabled"));
             // Load the sound loader
             ClassLoader soundLoader = Thread.currentThread().getContextClassLoader();
 
             String urlName = "file:" + getUserDir() + Constants.SOUND_JAR;
             urls[0] = new URL(urlName);
             soundLoader = new URLClassLoader(urls);
-
 
             // The background music
             url = soundLoader.getResource(Constants.SOUND_LOC + "music.ogg");

@@ -30,27 +30,24 @@ public class Sound implements Runnable {
     /////////////////////////////////////////////////////////////////
     // Properties
     /////////////////////////////////////////////////////////////////
-    private static long device;
-    private static long context;
     
     private byte[] buffer;
     private int playcount;
     private int bufferID;
     private AudioFormat format;
     private int sampleRate;
-    private String soundName;
 
     /////////////////////////////////////////////////////////////////
     // Constructor
     /////////////////////////////////////////////////////////////////
     public Sound(URL url) {
-        this.soundName = url.getPath().substring(url.getPath().lastIndexOf("/") + 1);
-        //Logger.info("Sound(): construct: " + this.soundName);
+
         try {
             // Load the audio data from the JAR file
-            AudioInputStream audioStream = AudioSystem.getAudioInputStream(new BufferedInputStream(getClass().getResourceAsStream(url.getPath().substring(url.getPath().lastIndexOf("!") + 1))));
+            AudioInputStream audioStream = AudioSystem.getAudioInputStream(url);
+
             if (audioStream == null) {
-                throw new IOException("Resource not found: " + url.getPath().substring(url.getPath().lastIndexOf("!") + 1));
+                throw new IOException("Resource not found: " + url.getPath());
             }
 
             // Get the format of the audio
@@ -60,7 +57,7 @@ public class Sound implements Runnable {
             // Read the audio data into a byte array
             buffer = audioStream.readAllBytes();
 
-            //Logger.info("Sound(): Audio loaded: Format = " + format + ", Buffer size = " + buffer.length);
+            Logger.info("OggClip() - Audio loaded: " + url.getPath() + " Format = " + format + ", Buffer size = " + buffer.length);
             // Load the sound into a buffer
             loadSound();
 
@@ -95,8 +92,6 @@ public class Sound implements Runnable {
 
         // Turn off positional sound
         //AL10.alSourcei(sourceID, AL10.AL_SOURCE_RELATIVE, AL10.AL_TRUE);
-
-        //Logger.info("Sound(): buffered: " + this.soundName + " rate " + sampleRate);
     }
 
     private int getALFormat(AudioFormat format) {
@@ -135,7 +130,7 @@ public class Sound implements Runnable {
     /////////////////////////////////////////////////////////////////
     public void play() {
         try {
-            //Logger.info("Sound(): playing: " + this.soundName + " playcount: " + playcount + "/" + Client.getImages().getSoundCount());
+
             if (playcount < GameMedia.MAX_SOUND_INDIVIDUAL && Client.getImages().belowMaxSounds()) {
                 Thread runner = new Thread(this, "SoundPlayThread-" + System.currentTimeMillis());
                 runner.start();

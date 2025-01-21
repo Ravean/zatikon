@@ -29,83 +29,44 @@ public class OggClip implements Runnable {
     /////////////////////////////////////////////////////////////////
     // Properties
     /////////////////////////////////////////////////////////////////
-    private static long device;
-    private static long context;
-    
+
     private byte[] buffer;
     private int bufferID;
     private int sourceID;
     private AudioFormat format;
     private int sampleRate;
-    private String soundName;
 
     /////////////////////////////////////////////////////////////////
     // Constructor
     /////////////////////////////////////////////////////////////////
     public OggClip(URL url) {
-        this.soundName = url.getPath().substring(url.getPath().lastIndexOf("/") + 1);
-        //Logger.info("OggClip(); construct: " + this.soundName);
-        try {
-            // If OpenAL isn't initialized yet, initialize it
-            if (device == 0) {
-                initOpenAL();
-            }
 
-            // Load the audio data from the JAR file
-            AudioInputStream audioStream = AudioSystem.getAudioInputStream(
-                new BufferedInputStream(
-                    getClass().getResourceAsStream(url.getPath())
-                )
-            );
+        try {
+            AudioInputStream audioStream = AudioSystem.getAudioInputStream(url);
+
             if (audioStream == null) {
-                throw new IOException("Resource not found: " + url.getPath().substring(url.getPath().lastIndexOf("!") + 1));
+                throw new IOException("Resource not found: " + url.getPath());
             }
 
             // Get the format of the audio
             format = audioStream.getFormat();
 
-            if(soundName.toLowerCase().endsWith(".ogg")) {
-                AudioFormat targetFormat = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, format.getSampleRate(), 16, format.getChannels(), format.getChannels() * 2, format.getSampleRate(), false);
-                audioStream = AudioSystem.getAudioInputStream(targetFormat, audioStream);
-                format = audioStream.getFormat();
-            }
+            AudioFormat targetFormat = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, format.getSampleRate(), 16, format.getChannels(), format.getChannels() * 2, format.getSampleRate(), false);
+            audioStream = AudioSystem.getAudioInputStream(targetFormat, audioStream);
+            format = audioStream.getFormat();
 
             sampleRate = (int) format.getSampleRate();
 
             // Read the audio data into a byte array
             buffer = audioStream.readAllBytes();
 
-            //Logger.info("OggClip(); Audio loaded: Format = " + format + ", Buffer size = " + buffer.length);
+            //Logger.info("OggClip() - Audio loaded: " + url.getPath() + " Format = " + format + ", Buffer size = " + buffer.length);
 
             // Load the sound into a buffer
             loadSound();
 
         } catch (Exception e) {
-            Logger.error("OggClip(); " + e);
-        }
-    }
-
-    private void initOpenAL() {
-        //Logger.error("OggClip(); Initialize OpenAL");
-        // Initialize OpenAL context only once
-        try (MemoryStack stack = MemoryStack.stackPush()) {
-            // Get default device name
-            String deviceName = ALC10.alcGetString(0, ALC10.ALC_DEFAULT_DEVICE_SPECIFIER);
-
-            // Open the device
-            device = ALC10.alcOpenDevice(deviceName);
-            if (device == MemoryUtil.NULL) {
-                throw new IllegalStateException("Failed to open the default OpenAL device.");
-            }
-
-            // Create the context
-            context = ALC10.alcCreateContext(device, (IntBuffer) null);
-            ALC10.alcMakeContextCurrent(context);
-            AL.createCapabilities(ALC.createCapabilities(device));
-
-            //Logger.info("OpenAL initialized.");
-        } catch (Exception e) {
-            Logger.error("Failed to initialize OpenAL: " + e);
+            Logger.error("OggClip() error loading " + url.getPath() + " : " + e);
         }
     }
 
@@ -138,8 +99,6 @@ public class OggClip implements Runnable {
 
         // Turn off positional sound
         AL10.alSourcei(sourceID, AL10.AL_SOURCE_RELATIVE, AL10.AL_TRUE);
-
-        //Logger.info("OggClip(); buffered: " + this.soundName + " rate " + sampleRate);
     }
 
     private int getALFormat(AudioFormat format) {
@@ -178,7 +137,6 @@ public class OggClip implements Runnable {
     /////////////////////////////////////////////////////////////////
     public void play() {
         try {
-            //Logger.info("OggClip(); playing: " + this.soundName);
             Thread runner = new Thread(this, "MusicPlayThread-" + System.currentTimeMillis());
             runner.start();
         } catch (Exception e) {
